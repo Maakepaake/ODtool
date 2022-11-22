@@ -111,6 +111,9 @@ switch n
         gdata = getRepeatableRandomNumber(size(times,1),size(times,2));
         bdata = gdata;bdata(1)=NaN;bdata(end)=inf;bdata(floor(length(bdata)/2))="lol";
         T = table(times,gdata,bdata);
+        %Modify to get some repetitions going:
+        T(2,2) = T(1,2);
+        T(3,3) = T(4,3);
     case 2
         %Some 3D data for plotting with stuck values:
         x = getRepeatableRandomNumber(10,3);
@@ -122,15 +125,16 @@ switch n
     case 1
         T.stuckData_1 = zeros(5,2);
         T.stuckData_2 = zeros(5,2);
-        T.stuckData_3 = zeros(5,2);
+        T.stuckData_2(1:2,1) = [1;1];T.stuckData_2(3:4,2) = [1;1];
+        T.stuckData_3 = T.stuckData_2;
 
-        T.ellipsoid   = boolean([0 ; ones(4,1)]);
+        T.ellipsoid   = [0 ; 0 ; 0 ; 1 ; 0];
     case 2
         T.stuckData_1 = zeros(10,3);
         T.stuckData_2 = zeros(10,3);
         T.stuckData_3 = zeros(10,3);
 
-        T.ellipsoid   = boolean([0 ; ones(4,1) ; 0 ; 1 ; 1 ; 0 ; 1]);
+        T.ellipsoid   = [0 ; ones(4,1) ; 0 ; 1 ; 1 ; 0 ; 1];
 end
 end
 function randNums = getRepeatableRandomNumber(n,m)

@@ -45,7 +45,7 @@ v1.0\\
 \verb|CLASS| Class definition file. Initializes an object when given a table containing a batch of data. Object properties can then be enquired and data validation methods applied.
 
 \marginlabel{Syntax:}
-\verb|myDataObject = validateBatch(givenDataTable);| creates an object containing provided batch of data.
+\verb|myObject = validateBatch(givenDataTable);| creates an object containing provided batch of data.
 
 \marginlabel{Input arguments:} Only one input argument is required, a Matlab table with desired data batch to validate. Note: numeric data variables with multiple columns are not supported in input table.
 
@@ -55,12 +55,12 @@ v1.0\\
 \index{metaBatch}\marginlabel{metaBatch:}
 \verb|PROPERTY| table containing only the meta data part of original table (for example time stamps, comments etc.).
 \marginlabel{Syntax:}
-\verb|T = myDataObject.metaBatch;| outputs a Matlab table containing only the non-numeric variables.
+\verb|T = myObject.metaBatch;| outputs a Matlab table containing only the non-numeric variables.
 
 \index{numericBatch}\marginlabel{numericBatch:}
 \verb|PROPERTY| table containing only the numeric data part of original table.
 \marginlabel{Syntax:}
-\verb|T = myDataObject.numericBatch;| outputs a Matlab table containing only the numeric variables.
+\verb|T = myObject.numericBatch;| outputs a Matlab table containing only the numeric variables.
 
 \subsection{Other required files}
 This tool requires no other files to run. However, an installation of \emph{CVX}, a Matlab--based modeling system for convex optimization, is required.
@@ -71,16 +71,16 @@ This tool requires no other files to run. However, an installation of \emph{CVX}
 \verb|METHOD| choose how to handle invalid data (NaN etc.).
 
 \marginlabel{Syntax:}
-\verb|myDataObject = myDataObject.setFaultyEntriesParams(option);| currently supports two options; 'remove' (default option) for removing the samples from data that contain invalid data, and 'zoh', which applies zero--order hold to overwrite the invalid data.
+\verb|myObject = myObject.setFaultyEntriesParams(option);| currently supports two options; 'remove' (default option) for removing the samples from data that contain invalid data, and 'zoh', which applies zero--order hold to overwrite the invalid data.
 
 \marginlabel{Examples:}
-\verb|myDataObject = myDataObject.setFaultyEntriesParams('zoh');| sets the next invalid data handling to act according to zero--order hold method.
+\verb|myObject = myObject.setFaultyEntriesParams('zoh');| sets the next invalid data handling to act according to zero--order hold method.
 
 \index{getFaultFreeData}\marginlabel{getFaultFreeData:}
 \verb|METHOD| returns table of numeric data that has been processed according to faulty entry parameter.
 
 \marginlabel{Syntax:}
-\verb|T = myDataObject.getFaultFreeData();|
+\verb|T = myObject.getFaultFreeData();|
 
 \marginlabel{Output arguments:}
 \verb|T| table containing the numeric data of provided batch after invalid data hadling.
@@ -89,7 +89,7 @@ This tool requires no other files to run. However, an installation of \emph{CVX}
 \verb|METHOD| configures stuck value detection with desired parameters.
 
 \marginlabel{Syntax:}
-\verb|myDataObject = myDataObject.setStuckValueParams(n,tol);|
+\verb|myObject = myObject.setStuckValueParams(n,tol);|
 
 \marginlabel{Input arguments:}
 \verb|n| Integer amount of consecutive same values in a row accepted before determining a value to be stuck. Default value 10.
@@ -100,16 +100,16 @@ This tool requires no other files to run. However, an installation of \emph{CVX}
 \verb|METHOD| provides binary table indicating stuck values (1 = stuck, 0 = OK).
 
 \marginlabel{Syntax:}
-\verb|T = myDataObject.getStuckValues();|
+\verb|T = myObject.getStuckValues();|
 
 \marginlabel{Output arguments:}
 \verb|T| table containing binary indicator of the stuck status of numeric data.
 
 \index{getOutlierCandidates}\marginlabel{getOutlierCandidates:}
-\verb|METHOD| returns binary vector indicating outlier candidates (1 = candidate, 0 = not candidate) in the provided data.
+\verb|METHOD| returns integer vector indicating outlier candidates (1...n = candidate in the layer counted from outside to center, 0 = not candidate) in the data.
 
 \marginlabel{Syntax:}
-\verb|[v,myDataObject] = myDataObject.getOutlierCandidates(n,tol,options);|
+\verb|[v,myObject] = myObject.getOutlierCandidates(n,tol,options);|
 
 \marginlabel{Input arguments:}
 \verb|n| Integer amount of consecutive ellipsoidal pealing procedures to be made. Note, relative to the initial, faulty data processed data set; so if called in iterative loop, value of $n$ must grow by one in each iteration. Method saves previously calculated results and does not need to re--do them as more layers are pealed (requires using the optional object output).
@@ -119,12 +119,12 @@ This tool requires no other files to run. However, an installation of \emph{CVX}
 \verb|options| Optional name--value pairs. Currently supports only logical 'doPlot' pair (default value false). If value is set to true and data has two (or three) variables a 2D (3D) figure is produced showing the data and the found minimum volume ellipsoid covering them.
 
 \marginlabel{Output arguments:}
-\verb|v| a vector that is as long as amount of samples in original data. For sample is labelled either to be an outlier candidate (value 1) within the given amount of layers pealed or not (value 0).
+\verb|v| a vector that is as long as amount of samples in original data. For sample is labelled either to be an outlier candidate (value 1...n) within the given amount of layers pealed or not (value 0). The non--zero number also represent the "depth" of outlier candidacy, 1 being the outmost layer.
 
-\verb|myDataObject| optional output. Needs to be used in order to reuse the results from pealing earlier layers.
+\verb|myObject| optional output. Needs to be used in order to reuse the results from pealing earlier layers.
 
 \marginlabel{Examples:}
-\verb|v = myDataObject.getOutlierCandidates(1,'doPlot',true);| outputs the vector containing information which samples are outlier candidates with respect to first ellipsoidal pealing of the data. It also prints out a figure demonstrating the data. Note: here the data displayed is only that of the latest ellipsoidal pealing (i.e. not the full original data if pealing more layers than 1). Figure~\ref{fig:3d} is generated when ten samples of three variables are used as input data, and output \verb|v = [ 0 1 1 1 1 0 1 1 0 1]|$^T$.
+\verb|v = myObject.getOutlierCandidates(1,'doPlot',true);| outputs the vector containing information which samples are outlier candidates with respect to first ellipsoidal pealing of the data. It also prints out a figure demonstrating the data. Note: here the data displayed is only that of the latest ellipsoidal pealing (i.e. not the full original data if pealing more layers than 1). Figure~\ref{fig:3d} is generated when ten samples of three variables are used as input data, and output \verb|v = [ 0 1 1 1 1 0 1 1 0 1]|$^T$.
 
 \begin{figure}[H]
 \begin{center}

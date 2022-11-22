@@ -159,7 +159,7 @@ classdef validationBatch
             %Calculate which entries fail to change more than tolerance:
             sameValues = abs(diff(obj.numericBatch.Variables))./...
                 min(abs(obj.numericBatch{1:end-1,:}),...
-                    abs(obj.numericBatch{2:end,:}))    < tol;
+                    abs(obj.numericBatch{2:end,:}))    <= tol;
             if any(sameValues(:))
                 %re-initialize if changes found:
                 obj.stuckIndices = zeros(size(obj.numericBatch));
@@ -167,9 +167,10 @@ classdef validationBatch
                 for iVariable = 1:width(obj.numericBatch)
                     f = find(diff([0 ; sameValues(:,iVariable) ; 0 ] == 1));
                     p = f(1:2:end-1);  % Start indices
-                    y = f(2:2:end)-p;  % Consecutive ones counts
+                    y = f(2:2:end)-p +1;  % Consecutive repeats in original data
                     for jViolation = find(y>n) %Mark all violations:
-                        obj.stuckIndices(p(jViolation):p(jViolation)+y(jViolation)-1)...
+                        obj.stuckIndices(p(jViolation):...
+                            p(jViolation)+y(jViolation)-1, iVariable)...
                             = ones(y(jViolation),1);
                     end
                 end
@@ -182,7 +183,7 @@ classdef validationBatch
                 'VariableNames',obj.numericBatch.Properties.VariableNames);
         end
 
-        function [v,obj] = getOutlierCandidates(obj,n,absTol,plotOptions)
+        function [v_ind,obj] = getOutlierCandidates(obj,n,absTol,plotOptions)
             %Apply (recursive) ellipsoidal pealing to detect possible
             %outliers
             arguments
@@ -200,6 +201,8 @@ classdef validationBatch
                 indVec = reshape(1:length(obj.metaBatch.nOutlier),[],1);
                 %And another internal helper-vector
                 tempVec = obj.metaBatch.nOutlier;
+                v_ind = zeros(size(obj.metaBatch.nOutlier)); %Initialize
+                v_plt = zeros(size(obj.metaBatch.nOutlier)); %Initialize
                 %Get the data:
                 numericData = table2array(obj.getFaultFreeData());
                 %Check if data has been removed:
@@ -213,12 +216,13 @@ classdef validationBatch
                 for iLayer = histMax+1:1:n
                     numericData(tempVec > 0,:) = [];
                     indVec(tempVec > 0) = [];
+                    v_plt(tempVec > 0) = [];
                     tempVec(tempVec > 0) = [];
                     assert(~isempty(numericData),'All data pealed already!')
                     
                     %Do the actual ellipsoidal pealing:
                     x = numericData'; %Detect COLUMN outliers, so transpose.
-                    [nVars,nSamples] = size(x); %#ok<ASGLU> 
+                    [nVars,nSamples] = size(x);
                     % Create and solve the model
                     cvx_begin quiet
                     variable A(nVars,nVars) symmetric
@@ -235,15 +239,18 @@ classdef validationBatch
                         'check your data for anomalities...']);
                     %Update internal helpers accordingly:
                     tempVec(outlierIndices) = 1;
+                    v_plt(outlierIndices) = 1;
                     %Map back to original information vector:
                     obj.metaBatch.nOutlier(indVec(outlierIndices)) = iLayer;
                 end
             end
             %Write the results:
-            v = (obj.metaBatch.nOutlier >  0) &...
-                (obj.metaBatch.nOutlier <= n);
+            v_ind((obj.metaBatch.nOutlier >  0) & (obj.metaBatch.nOutlier <= n)) =...
+                obj.metaBatch.nOutlier((obj.metaBatch.nOutlier >  0) &...
+                (obj.metaBatch.nOutlier <= n));
             %Plot the results:
             if plotOptions.doPlot
+            if min(v_plt) == 0 && exist('A') == 1 %non-candidates && cvx done.
                 switch nVars
                     case 2
                         figure();
@@ -251,7 +258,7 @@ classdef validationBatch
                         angles   = linspace( 0, 2 * pi, noangles );
                         ellipse  = A \ [ cos(angles) - b(1) ; sin(angles) - b(2) ];
                         plot( x(1,:), x(2,:), 'ro', ellipse(1,:), ellipse(2,:), 'b-' );
-                        plot( x(1,v), x(2,v), 'r*', x(1,~v), x(2,~v), 'bo', ...
+                        plot( x(1,(v_plt>0)), x(2,(v_plt>0)), 'r*', x(1,~(v_plt>0)), x(2,~(v_plt>0)), 'bo', ...
                             ellipse(1,:), ellipse(2,:), 'k-' );
                         axis equal
                         legend('Outlier candidates','Not candidates', ...
@@ -266,8 +273,8 @@ classdef validationBatch
                         X = reshape(ellipse(1,:),[],21);%Reformulate
                         Y = reshape(ellipse(2,:),[],21);% into
                         Z = reshape(ellipse(3,:),[],21);% matrices.
-                        figure();plot3(x(1,v),  x(2,v),  x(3,v), 'r*');hold on;
-                                 plot3(x(1,~v), x(2,~v), x(3,~v), 'bo')
+                        figure();plot3(x(1,(v_plt>0)),  x(2,(v_plt>0)),  x(3,(v_plt>0)), 'r*');hold on;
+                                 plot3(x(1,~(v_plt>0)), x(2,~(v_plt>0)), x(3,~(v_plt>0)), 'bo')
                            surf(X,Y,Z,'FaceColor','none');axis equal;hold off
                         legend('Outlier candidates','Not candidates', ...
                             'Found ellipsoid')
@@ -277,9 +284,14 @@ classdef validationBatch
                     otherwise
                         disp('Plotting possible only in 2D and 3D.')
                 end
-            end
-
-
+                title(['Showing pealing of layer ', num2str(iLayer)])
+            elseif min(v_plt) > 0 %no remaining internal points
+                disp('No remaining non-outlier points!')
+            else
+                disp(['Sorry, cannot plot as cvx was not run now...' ...
+                    ' (ellipsoid not saved).'])
+            end %if v_plt
+            end %if plot
         end
 
     end %non-static public methods
